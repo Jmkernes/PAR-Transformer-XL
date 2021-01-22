@@ -1,5 +1,16 @@
 #!/bin/sh
 
+DATA_ROOT=./data
+TEXT_DIR=${DATA_ROOT}/wikitext-2
+TFRECORD_DIR=${DATA_ROOT}/wiki2_bsz32_seqlen32_tfrecords
+FROM_DIRECTORY=True
+VOCAB_SIZE=12000
+SP_MODEL_PREFIX=wiki2_12k
+LOWERCASE=True
+SHARDS=1
+BATCH_SIZE=32
+SEQ_LEN=32
+
 echo "=== Acquiring datasets ==="
 echo "---"
 
@@ -15,9 +26,24 @@ if [[ ! -d 'wikitext-2' ]]; then
     mv wiki.valid.tokens valid.txt
     mv wiki.test.tokens test.txt
     cd ..
+    # Begin my shit TODO test this
+    echo "Finished downloading data to directory /data/wikitext-2/."
+    cd ..
+
+    echo "Preprocessing text dataset..."
+    echo "Default settings: batch size: 32. sequence length: 32"
+    python3 build_data.py \
+      --from_directory=${FROM_DIRECTORY} \
+      --train_tokenizer=${TRAIN_TOKENIZER} \
+      --text_file=${TEXT_DIR} \
+      --vocab_size=${VOCAB_SIZE} \
+      --sp_model_prefix=${SP_MODEL_PREFIX} \
+      --lowercase=${LOWERCASE} \
+      --shards=${SHARDS} \
+      --batch_size=${BATCH_SIZE} \
+      --seq_len=${SEQ_LEN} \
+      --tfrecords_directory=${TFRECORD_DIR}
 fi
 
-echo "Finished loading data."
-echo "Saved 3 files in the directory /data/wikitext-2/"
-echo "Files are named (train, test, valid).txt"
+
 echo " ~~~~~ Happy Training! ~~~~~ "
