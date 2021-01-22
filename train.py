@@ -70,7 +70,7 @@ def load_datasets(train, val, test):
     config = {'tfrecords_directory': train,'sp_model_prefix': 'wiki2_12k'}
     train_dm = DataManager.initialize_from_tfrecord(config)
 
-    logging.info(f\n"Loading validation data from: {val}")
+    logging.info(f"\nLoading validation data from: {val}")
     config['tfrecords_directory'] = val
     valid_dm = DataManager.initialize_from_tfrecord(config)
 
