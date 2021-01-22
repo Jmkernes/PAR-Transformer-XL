@@ -14,21 +14,21 @@ def extract_pi_weights(model):
 
 def stochastic_block_plot(weights):
     num_blocks = len(weights)
-    fig, ax = plt.subplots()
+    weights = np.transpose(weights)
+    fig, ax = plt.subplots(figsize=(12, 8))
     cax = ax.matshow(weights, cmap='binary', vmin=0, vmax=1)
-    ax.set_xticks(range(3))
-    ax.set_xticklabels(['Attention', 'Dense', 'Identity'], rotation=15, size=14)
-    ax.set_yticks(range(num_blocks))
-    ax.set_yticklabels(range(1, num_blocks+1))
-    ax.set_xlabel(f'Block type probability', size=16)
-    ax.set_ylabel(f'Stochastic block', size=16)
+    ax.set_yticks(range(3))
+    ax.set_yticklabels(['Attention', 'Dense', 'Identity'], rotation=0, size=14)
+    ax.set_xticks(range(num_blocks))
+    ax.set_xticklabels(range(1, num_blocks+1))
+    ax.set_ylabel(f'Block type probability',size=14)
+    ax.set_xlabel(f'Stochastic block', size=14)
 
     # add text boxs for max weight values
-    for i,j in zip(np.arange(num_blocks), np.argmax(weights, -1)):
+    for i,j in zip(np.argmax(weights, 0), np.arange(num_blocks)):
         ax.text(j, i, '{:0.2f}'.format(weights[i,j]), ha='center', va='center',
                 bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3'))
 
-    fig.colorbar(cax)
     return ax, weights
 
 def visualize_pi_weights(model):
