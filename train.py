@@ -80,15 +80,28 @@ def load_datasets(train, val, test):
 
     return train_dm, valid_dm, test_dm
 
-class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-    def __init__(self, d_model, warmup_steps=4000):
-        super(CustomSchedule, self).__init__()
+class TransformerSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self, d_model, warmup_steps=4000, **kwargs):
+        super().__init__(**kwargs)
         self.d_model = tf.cast(d_model, tf.float32)
         self.warmup_steps = warmup_steps
     def __call__(self, step):
         arg1 = tf.math.rsqrt(step)
         arg2 = step * (self.warmup_steps ** -1.5)
         return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+
+class CosineSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    def __init__(self, max_lr, decay_steps, warmup_steps=4000, **kwargs):
+        super().__init__(**kwargs)
+        self.max_lr = max_lr
+        self.decay_steps = decay_steps
+        self.warmup_steps = warmup_steps
+        self.pi = 3.1415927
+    def __call__(self, step):
+        linear = self.max_lr*(step/self.warmup_steps)
+        angle = self.pi*tf.math.maximum(step-self.warmup_steps, 0)/self.decay_steps
+        cosine = 0.5*self.max_lr*(1+tf.math.cos(angle))
+        return tf.math.minimum(linear, cosine)
 
 def main(argv):
     # Take care of some flags logic beyond simple constraints.
@@ -113,7 +126,7 @@ def main(argv):
 
     ### Define learning rate schedule and simulated annealing schedule for gumbel softmax temperature tau.
     logging.info(f"\n\nInitializing {FLAGS.opt_name} optimizer with {FLAGS.warmup_steps} warmup steps.")
-    learning_rate = CustomSchedule(FLAGS.d_model, FLAGS.warmup_steps)
+    learning_rate = CosineSchedule(5e-4, FLAGS.warmup_steps,DATASET_SIZE*FLAGS.epochs-FLAGS.warmup_steps) # Max learning rate here
     optimizer = tf.keras.optimizers.get(FLAGS.opt_name)
     optimizer.learning_rate = learning_rate
 
@@ -231,7 +244,7 @@ def main(argv):
     logging.info("\n\n~~~~~~~~~~ Beginning training ~~~~~~~~~~")
     for epoch in range(FLAGS.epochs):
 
-        logging.info('-'*10+f' Epoch {epoch+1} '+'-'*10)
+        logging.info('-'*10+f' Epoch {epoch+1}/{FLAGS.epochs} '+'-'*10)
         start = time.time()
         for x in [train_loss, valid_loss, train_perp, valid_perp]:
             x.reset_states()

@@ -2,24 +2,38 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 
-def visualize_pi_weights(model):
+def extract_pi_weights(model):
     weights = []
     for layer in model.layers:
-        if hasattr(model, 'pi'):
+        if hasattr(layer, 'pi'):
             weight = layer.pi
-            weight /= tf.reduce_sum(weight)
-            weights.append(layer.pi)
+            weight = weight/tf.reduce_sum(weight)
+            weights.append(weight)
+    weights = tf.stack(weights, 0).numpy()
+    return weights
+
+def stochastic_block_plot(weights):
     num_blocks = len(weights)
-    weights = tf.stack(weights, 0)
+    fig, ax = plt.subplots()
+    cax = ax.matshow(weights, cmap='binary', vmin=0, vmax=1)
+    ax.set_xticks(range(3))
+    ax.set_xticklabels(['Attention', 'Dense', 'Identity'], rotation=15, size=14)
+    ax.set_yticks(range(num_blocks))
+    ax.set_yticklabels(range(1, num_blocks+1))
+    ax.set_xlabel(f'Block type probability', size=16)
+    ax.set_ylabel(f'Stochastic block', size=16)
 
-    fig = plt.figure(figsize=(8, 5))
-    plt.matshow(weights, cmap='viridis')
-    plt.xticks(range(3), ['Attention', 'Dense', 'Identity'], rotation=15, size=14)
-    plt.yticks(range(num_blocks), range(1, num_blocks+1))
-    plt.xlabel(f'Block type probability', size=16)
-    plt.ylabel(f'Stochastic block', size=16)
-    plt.show()
+    # add text boxs for max weight values
+    for i,j in zip(np.arange(num_blocks), np.argmax(weights, -1)):
+        ax.text(j, i, '{:0.2f}'.format(weights[i,j]), ha='center', va='center',
+                bbox=dict(boxstyle='round', facecolor='white', edgecolor='0.3'))
 
+    fig.colorbar(cax)
+    return ax, weights
+
+def visualize_pi_weights(model):
+    weights = extract_pi_weights(model)
+    return stochastic_block_plot(weights)
 
 def print_bar(step, tot, diff, loss):
     num_eq = int(10*(step+1)/tot)

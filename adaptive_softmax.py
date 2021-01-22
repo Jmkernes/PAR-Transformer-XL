@@ -7,7 +7,7 @@ class AdaptiveSoftmax(tf.keras.layers.Layer):
     def __init__(self, cutoffs, proj_factor=4, proj_dims=[], **kwargs):
         """ Vocabulary must be sorted in decreasing order of frequency.
         Args:
-            cutoffs: a list of integers giving bin cutoffs. The last element
+            cutoffs: a SORTED list of integers giving bin cutoffs. The last element
                     must be the vocab_size. Bins are intervals like [i,j).
             proj_factor: reduction factor for hidden states feeding into
                             successive clusters. Example- let h0=512 and
@@ -21,7 +21,8 @@ class AdaptiveSoftmax(tf.keras.layers.Layer):
             call: if target is input, returns loss, else returns softmax
         """
         super().__init__(**kwargs)
-        self.cutoffs = cutoffs
+        assert cutoffs # Made these two first additions. please don't break everything!
+        self.cutoffs = sorted(cutoffs)
         self.cluster_num = len(cutoffs)-1
         self.proj_dims = proj_dims
         self.proj_factor = proj_factor
