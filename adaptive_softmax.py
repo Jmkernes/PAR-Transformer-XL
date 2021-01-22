@@ -4,7 +4,7 @@ class AdaptiveSoftmax(tf.keras.layers.Layer):
     """ An adaptive softmax layer suited for large output dimension. and GPUs
     Based on https://arxiv.org/pdf/1609.04309.pdf, and on the implementation
     at https://github.com/yangsaiyong/tf-adaptive-softmax-lstm-lm"""
-    def __init__(self, cutoffs, proj_factor=4, proj_dims=None, **kwargs):
+    def __init__(self, cutoffs, proj_factor=4, proj_dims=[], **kwargs):
         """ Vocabulary must be sorted in decreasing order of frequency.
         Args:
             cutoffs: a list of integers giving bin cutoffs. The last element
@@ -31,7 +31,7 @@ class AdaptiveSoftmax(tf.keras.layers.Layer):
     def build(self, input_shape):
         hidden_dim = tf.cast(input_shape[-1], tf.int32) # better be <2^32
         self.proj_factor = tf.cast(self.proj_factor, tf.int32) # same^^
-        if self.proj_dims is not None:
+        if self.proj_dims:
             assert len(self.proj_dims)==self.cluster_num
         else:
             self.proj_dims = hidden_dim/self.proj_factor**tf.range(1, self.cluster_num+1)

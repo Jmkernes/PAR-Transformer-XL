@@ -121,7 +121,10 @@ def write_to_tfrecord_shards(directory, dataset, batch_size, seq_len, shards):
     ONLY shard if your dataset is very large and/or cannot fit into memory."""
 
     print(f"\n\nCreating tfrecords directory: {directory}.")
-    os.mkdir(directory)
+    try:
+        os.mkdir(directory)
+    except:
+        pass
     ds_size = find_dataset_size(dataset)
     shard_size = ds_size//shards
     start = time.time()

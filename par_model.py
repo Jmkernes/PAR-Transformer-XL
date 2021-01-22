@@ -224,19 +224,18 @@ class PARTransformerXL(tf.keras.Model):
 
         self.embed = tf.keras.layers.Embedding(vocab_size, d_model)
 
-        if cutoffs is None:
-            self.final_layer = tf.keras.layers.Dense(vocab_size)
+        if cutoffs:
+            self.final_layer = AdaptiveSoftmax(cutoffs, proj_factor, proj_dims)
         else:
-            self.final_layer = AdaptiveSoftmax(cutoffs, proj_factor,
-                                               proj_dims)
+            self.final_layer = tf.keras.layers.Dense(vocab_size)
 
         self.stoch_blks = [
             StochasticBlock(d_model, num_heads, max_position,
                             d_ffn, dropout_rate)
             for _ in range(num_layers)]
 
-        self.dropout = tf.keras.layers.Dropout(dropout_rate,
-                                               name='inp_dropout')
+        self.dropout = tf.keras.layers.Dropout(dropout_rate, name='inp_dropout')
+
     def _get_next_mem(self, x, x_mem, mem_len):
         if mem_len==0:
             return x_mem # ensures None is always returned. May break in graph mode!!!
@@ -247,14 +246,14 @@ class PARTransformerXL(tf.keras.Model):
         return tf.stop_gradient(new_state) # don't backpropagate to cache
 
     def _loss(self, hidden_state, labels):
-        if self.cutoffs is not None:
+        if self.cutoffs:
             return self.final_layer(hidden_state, labels)
         logits = self.final_layer(hidden_state)
         loss = tf.nn.sparse_softmax_cross_entropy_with_logits(labels, logits)
         return tf.reduce_mean(loss)
 
-    def call(self, x, x_mems=None, tau=None, labels=None,
-             training=None, pad_mask=None):
+    def call(self, x, x_mems=None, labels=None, tau=None, training=None, pad_mask=None):
+
         if x_mems is None:
             x_mems = [None]*self.num_layers
 

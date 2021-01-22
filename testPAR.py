@@ -160,6 +160,36 @@ class TestPARXL(unittest.TestCase):
         pad_mask = create_pad_mask(self.inp, self.mem_len)
         loss, mems = self.transformer(self.inp, mems, labels=self.labels,
                                       pad_mask=pad_mask)
+        self.assertTrue(True)
+
+    def test_PARtrXL_forward_no_tau_with_proj_dims(self):
+        d_model, num_heads, max_position, d_ffn = 16, 2, 12, 32
+        num_layers, mem_len, vocab_size = 2, 4, 1000
+        cutoffs, proj_factor = [50, 250, 1000], 2
+
+        transformer = PARTransformerXL(
+            d_model, num_heads, max_position,
+            d_ffn, num_layers, mem_len, vocab_size,
+            dropout_rate=0.1, cutoffs=cutoffs,
+            proj_factor=proj_factor, proj_dims=[8, 4]
+        )
+
+        bsz, seq_len = 4, max_position-mem_len
+        bsz, seq_len = 4, max_position-mem_len
+        inp = tf.random.uniform(
+            (bsz, seq_len), 0, vocab_size, tf.int64)
+        labels = tf.random.uniform(
+            (bsz, seq_len), 0, vocab_size, tf.int64)
+        mem = tf.random.uniform(
+            (bsz, seq_len), 0, vocab_size, tf.int64)
+        mems = None
+        x, mems = transformer(inp, x_mems=mems)
+        loss, mems = transformer(inp, x_mems=mems, labels=labels)
+
+        pad_mask = create_pad_mask(inp, mem_len)
+        loss, mems = transformer(inp, mems, labels=labels,
+                                      pad_mask=pad_mask)
+        self.assertTrue(True)
 
     def test_PARtrXL_forward_with_tau(self):
         if not hasattr(self, 'blk'):
@@ -174,6 +204,21 @@ class TestPARXL(unittest.TestCase):
         tau /= 2.
         loss, mems = self.transformer(self.inp, mems,labels=self.labels,
                                       pad_mask=pad_mask, tau=tau)
+        self.assertTrue(True)
+
+    def test_PARtrXL_forward_cutoffs_empty(self):
+        if not hasattr(self, 'blk'):
+            self.initialize()
+        self.transformer.cutoffs = []
+        mems = None
+        x, mems = self.transformer(self.inp, x_mems=mems)
+        loss, mems = self.transformer(self.inp, x_mems=mems,
+                                      labels=self.labels)
+
+        pad_mask = create_pad_mask(self.inp, self.mem_len)
+        loss, mems = self.transformer(self.inp, mems, labels=self.labels,
+                                      pad_mask=pad_mask)
+        self.assertTrue(True)
 
 class TestDataUtils(unittest.TestCase):
 
@@ -188,19 +233,19 @@ class TestDataUtils(unittest.TestCase):
             [b'sent', b'one'], [b'sent', b'two'], [b'sent', b'three']])
         ans = tf.constant([b'sent', b'one', b'sent', b'two',
             b'sent', b'three'], dtype=tf.string)
-        pred = flatten_dataset_to_tensor(ds)
+        pred = flatten_dataset_to_tensor(ds, size=3)
         self.assertTrue(tf.reduce_all(tf.math.equal(ans, pred)))
 
 
         ds = tf.data.Dataset.from_tensor_slices([
             b'sent', b'one', b'three'])
         ans = tf.constant([b'sent', b'one', b'three'], dtype=tf.string)
-        pred = flatten_dataset_to_tensor(ds)
+        pred = flatten_dataset_to_tensor(ds, size=3)
         self.assertTrue(tf.reduce_all(tf.math.equal(ans, pred)))
 
         ds = tf.data.Dataset.range(5)
         ans = tf.constant([0,1,2,3,4], dtype=tf.int64)
-        pred = flatten_dataset_to_tensor(ds)
+        pred = flatten_dataset_to_tensor(ds, size=5)
         self.assertTrue(tf.reduce_all(tf.equal(ans, pred)))
 
     def test_context_batch(self):
