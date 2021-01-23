@@ -29,7 +29,7 @@ def create_pad_mask(x, mem_len):
     return x[:, tf.newaxis, tf.newaxis, :]
 
 def left_shift(x):
-    dims = x.shape
+    dims = tf.shape(x)
     x = tf.pad(x, [(0,0),(0,0),(0,0),(1,0)])
     x = tf.reshape(x, (dims[0], dims[1], dims[3]+1, dims[2]))
     x = x[:,:,1:,:]
@@ -91,7 +91,7 @@ class RelMultiHeadAttention(tf.keras.layers.Layer):
         self.dense = tf.keras.layers.Dense(d_model, activation='relu')
 
     def split_heads(self, x):
-        x = tf.reshape(x, (x.shape[0], x.shape[1], -1, self.depth))
+        x = tf.reshape(x, (tf.shape(x)[0], tf.shape(x)[1], -1, self.depth))
         return tf.transpose(x, [0,2,1,3])
 
     def call(self, x, x_mem, pad_mask=None):
@@ -162,17 +162,17 @@ class RelaxedOneHot(tf.keras.layers.Layer):
         logits = (tf.math.log(pi)+g)/tau
         out = tf.nn.softmax(logits)
         if self.straight_through:
-            out_hard = tf.one_hot(tf.argmax(output, -1), self.K)
+            out_hard = tf.one_hot(tf.argmax(out, -1), self.K)
             out = tf.stop_gradient(out_hard-out)+out
         return out
 
 class StochasticBlock(tf.keras.layers.Layer):
-    def __init__(self, d_model, num_heads, max_position,
-                 d_ffn, dropout_rate=0.1, **kwargs):
+    def __init__(self, d_model, num_heads, max_position, d_ffn,
+                dropout_rate=0.1, straight_through=False, **kwargs):
         super().__init__(**kwargs)
         self.rmha = RelMultiHeadAttention(d_model, num_heads, max_position)
         self.ffn = positionwise_ffn(d_model, d_ffn)
-        self.gumbel_softmax = RelaxedOneHot()
+        self.gumbel_softmax = RelaxedOneHot(straight_through)
 
         self.layernorm_mha = tf.keras.layers.LayerNormalization()
         self.layernorm_ffn = tf.keras.layers.LayerNormalization()
@@ -212,7 +212,7 @@ class PARTransformerXL(tf.keras.Model):
     def __init__(self, d_model, num_heads, max_position,
                  d_ffn, num_layers, mem_len, vocab_size,
                  dropout_rate=0.1, cutoffs=None, proj_factor=4,
-                 proj_dims=None, **kwargs):
+                 proj_dims=None, straight_through=False, **kwargs):
         super().__init__(**kwargs)
         assert mem_len >= 0 and max_position > 0
 
@@ -230,8 +230,8 @@ class PARTransformerXL(tf.keras.Model):
             self.final_layer = tf.keras.layers.Dense(vocab_size)
 
         self.stoch_blks = [
-            StochasticBlock(d_model, num_heads, max_position,
-                            d_ffn, dropout_rate)
+            StochasticBlock(d_model, num_heads, max_position, d_ffn,
+                            dropout_rate, straight_through)
             for _ in range(num_layers)]
 
         self.dropout = tf.keras.layers.Dropout(dropout_rate, name='inp_dropout')
