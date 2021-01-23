@@ -267,15 +267,15 @@ def main(argv):
             logging.info('Latest checkpoint restored!!')
         except:
             logging.warning("Model may have changed, could not restore checkpoint.")
+
+    ckpt_save_path = ckpt_manager.save()
+    logging.info(f'Checkpointing model initialization at {ckpt_save_path}')
     with open(checkpoint_path+'/config', 'w') as file:
         file.write(json.dumps(config))
     logging.info(f"Writing model configuration to {checkpoint_path+'/config'}")
     logging.info("""To recover this model from checkpoint, initialize a model using the config file.
     Then, create a tf.train.Checkpoint pointing at this directory, set model=model, run the restore,
     method of the checkpoint, then finally the uninitialized model should acquire the weights.""")
-
-    ckpt_save_path = ckpt_manager.save()
-    logging.info(f'Checkpointing model initialization at {ckpt_save_path}')
 
 
     # Run the actual training loop!
