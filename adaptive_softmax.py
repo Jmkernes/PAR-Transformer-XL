@@ -7,7 +7,7 @@ class AdaptiveSoftmax(tf.keras.layers.Layer):
     def __init__(self, cutoffs, proj_factor=4, proj_dims=[], **kwargs):
         """ Vocabulary must be sorted in decreasing order of frequency.
         Args:
-            cutoffs: a SORTED list of integers giving bin cutoffs. The last element
+            cutoffs: a list of integers giving bin cutoffs. The last element
                     must be the vocab_size. Bins are intervals like [i,j).
             proj_factor: reduction factor for hidden states feeding into
                             successive clusters. Example- let h0=512 and
@@ -30,8 +30,10 @@ class AdaptiveSoftmax(tf.keras.layers.Layer):
         self.tail_w = None
 
     def get_config(self):
-        base_config = super().get_config()
-        return {**base_config, "proj_factor": 4, "proj_dims":[]}
+        proj_dims = [x.numpy() for x in self.proj_dims]
+        base_config = super(AdaptiveSoftmax, self).get_config()
+        return {**base_config, "proj_factor": self.proj_factor,
+         "proj_dims":proj_dims, "cutoffs":self.cutoffs}
 
     def build(self, input_shape):
         hidden_dim = input_shape[-1]

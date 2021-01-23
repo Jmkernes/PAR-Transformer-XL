@@ -2,6 +2,7 @@ import logging
 logging.info("\n\n~~~~~~~~ Importing Modules ~~~~~~~~\n")
 
 import os
+import json
 import time
 import datetime
 import numpy as np
@@ -17,53 +18,68 @@ from absl import app
 
 FLAGS = flags.FLAGS
 
-# Get flag for where to save checkpointed models and tensorboard training data
-flags.DEFINE_string('model_name', datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
-'Model name for saving to checkpoints and log files. Defaults to current time.')
+### Checkpointing and TensorBoarding parameter flag(s)
+flags.DEFINE_string('model_name',
+    default=datetime.datetime.now().strftime("%Y%m%d-%H%M%S"),
+    help='Model name for saving to checkpoints and log files. \
+         Defaults to current time.')
 
-# Get data loading flags
-flags.DEFINE_string('train_directory', 'data/wikitext2_bsz32_seqlen32_tfrecords_train',
-'Path of training dataset tfrecords directory')
+### Data path locaation flags
+flags.DEFINE_string('train_directory',
+    default='data/wikitext2_bsz32_seqlen32_tfrecords_train',
+    help='Path of training dataset tfrecords directory')
+flags.DEFINE_string('valid_directory',
+    default='data/wikitext2_bsz32_seqlen32_tfrecords_valid',
+    help='Path of validation dataset tfrecords directory')
+flags.DEFINE_string('test_directory',
+    default='data/wikitext2_bsz32_seqlen32_tfrecords_test',
+    help='Path of testing dataset tfrecords directory')
 
-flags.DEFINE_string('valid_directory', 'data/wikitext2_bsz32_seqlen32_tfrecords_valid',
-'Path of validation dataset tfrecords directory')
+### Get model parameter flags
+flags.DEFINE_integer('d_model', default=256,
+    help='Embedding dimension. Used in attention layers.')
+flags.DEFINE_integer('num_heads', default=8,
+    help='Number of heads to use in MultiHeadAttention.')
+flags.DEFINE_integer('d_ffn', default=1024,
+    help='Dimension of pointwise feed forward networks.',
+    lower_bound=1)
+flags.DEFINE_integer('num_layers', default=12,
+    help='Number of stochastic blocks/encoder layers.',
+    lower_bound=0)
+flags.DEFINE_integer('mem_len', default=32,
+    help='Number of previous values to use as memory.')
+flags.DEFINE_float('dropout_rate', default=0.1,
+    help='Rate to drop units.')
+flags.DEFINE_multi_integer('cutoffs', default=[],
+    help='Cutoffs to use for adaptive softmax layer. Do NOT\
+         enter the final cutoff (the vocab size). This will \
+         be inferred from your sp_model_file. Cutoffs may be \
+         entered by repated use of --cutoffs=[NUMBER].')
+flags.DEFINE_integer('proj_factor', default=4,
+    help='Reduction factor of d_model in adaptive softmax for successive clusters')
+flags.DEFINE_boolean('straight_through', default=False,
+    help='Set True to enable straight_through gradient in RelaxedOneHot layer.')
+flags.DEFINE_multi_integer('proj_dims', default=[],
+    help='Manually set reduction factors. Must match number of clusters.')
 
-flags.DEFINE_string('test_directory', 'data/wikitext2_bsz32_seqlen32_tfrecords_test',
-'Path of testing dataset tfrecords directory')
+### Learning parameters
+flags.DEFINE_float('max_lr', default=1e-4,
+    help='Maximum learning rate after warmup. Used in CosineSchedule.')
+flags.DEFINE_integer('warmup_steps', default=4000,
+    help='Number of warmup steps for the learning rate.')
+flags.DEFINE_float('tau_start', default=2.0,
+    help='Initial value for gumbel softmax temperature tau.')
+flags.DEFINE_float('tau_end', default=0.2,
+    help='Final value for gumbel softmax temperature tau.')
+flags.DEFINE_integer('epochs', default=20,
+    help='Number of epochs')
+flags.DEFINE_boolean('tau_is_trainable', default=False,
+    help='Set True to let model learn tau.')
+flags.DEFINE_string('opt_name', default='adam',
+    help='Available choices are set by the tf.keras.optimizers.get() call.')
 
-# Get model parameter flags
-flags.DEFINE_integer('d_model', 256, 'Embedding dimension. Used in attention layers.')
 
-flags.DEFINE_integer('num_heads', 8, 'Number of heads to use in MultiHeadAttention.')
-
-flags.DEFINE_integer('d_ffn', 1024, 'Dimension of pointwise feed forward networks.', lower_bound=1)
-
-flags.DEFINE_integer('num_layers', 12, 'Number of stochastic blocks/encoder layers.', lower_bound=0)
-
-flags.DEFINE_integer('mem_len', 32, 'Number of previous values to use as memory.')
-
-flags.DEFINE_float('dropout_rate', 0.1, 'Rate to drop units.')
-
-flags.DEFINE_multi_integer('cutoffs', [], 'Cutoffs to use for adaptive softmax layer. Do NOT\
-enter the final cutoff (the vocab size). This will be inferred from your sp_model_file.\
-Cutoffs may be entered by repated use of --cutoffs=[NUMBER].')
-
-flags.DEFINE_integer('proj_factor', 4, 'Reduction factor of d_model in adaptive softmax for successive clusters')
-
-flags.DEFINE_multi_integer('proj_dims', [], 'Manually set reduction factors. Must match number of clusters.')
-
-flags.DEFINE_integer('warmup_steps', 4000, 'Number of warmup steps for the learning rate.')
-
-flags.DEFINE_float('tau_start', 2.0, 'Initial value for gumbel softmax temperature tau.')
-
-flags.DEFINE_float('tau_end', 0.2, 'Final value for gumbel softmax temperature tau.')
-
-flags.DEFINE_integer('epochs', 20, 'Number of epochs')
-
-flags.DEFINE_boolean('tau_is_trainable', False, 'Set True to let model learn tau.')
-
-flags.DEFINE_string('opt_name', 'adam', 'Available choices are set by the tf.keras.optimizers.get() call.')
-
+### Data loading functions
 def load_datasets(train, val, test):
     """Load the wikitext2 train, validation and test data"""
     logging.info(f"\nLoading training data from: {train}")
@@ -80,11 +96,16 @@ def load_datasets(train, val, test):
 
     return train_dm, valid_dm, test_dm
 
+
+### Custom learning rate schedulers
 class TransformerSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     def __init__(self, d_model, warmup_steps=4000, **kwargs):
         super().__init__(**kwargs)
         self.d_model = tf.cast(d_model, tf.float32)
         self.warmup_steps = warmup_steps
+    def get_config(self):
+        base_config = super().get_config()
+        return {**base_config, "warmup_steps": self.warmup_steps}
     def __call__(self, step):
         arg1 = tf.math.rsqrt(step)
         arg2 = step * (self.warmup_steps ** -1.5)
@@ -97,6 +118,9 @@ class CosineSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         self.decay_steps = decay_steps
         self.warmup_steps = warmup_steps
         self.pi = 3.1415927
+    def get_config(self):
+        base_config = super().get_config()
+        return {**base_config, "warmup_steps": self.warmup_steps}
     def __call__(self, step):
         linear = self.max_lr*(step/self.warmup_steps)
         angle = self.pi*tf.math.maximum(step-self.warmup_steps, 0)/self.decay_steps
@@ -111,24 +135,26 @@ def main(argv):
     train_dm, valid_dm, test_dm = load_datasets(FLAGS.train_directory, FLAGS.valid_directory, FLAGS.test_directory)
 
     ## Set global constants inferred from the training data.
-    BATCH_SIZE = train_dm.batch_size
-    SEQ_LEN = train_dm.seq_len
-    VOCAB_SIZE = train_dm.tokenizer.vocab_size().numpy()
-    DATASET_SIZE = train_dm.ds_size.numpy()
-    MAX_POSITION = max(512, FLAGS.mem_len+SEQ_LEN)
+    BATCH_SIZE = int(train_dm.batch_size)
+    SEQ_LEN = int(train_dm.seq_len)
+    VOCAB_SIZE = int(train_dm.tokenizer.vocab_size())
+    DATASET_SIZE = int(train_dm.ds_size.numpy())
+    MAX_POSITION = int(max(512, FLAGS.mem_len+SEQ_LEN))
 
     # Take care of additional constraints on inputs that needed the vocab size
     if any([z>=VOCAB_SIZE for z in FLAGS.cutoffs]) or len(set(FLAGS.cutoffs))!=len(FLAGS.cutoffs):
-        raise ValueError("Cutoffs must not exceed {VOCAB_SIZE} or contain duplicates.")
+        raise ValueError(f"Cutoffs must not exceed {VOCAB_SIZE} or contain duplicates.")
     if FLAGS.cutoffs:
-        FLAGS.cutoffs.sort()
+        FLAGS.cutoffs.sort() # this is redundant, the layer sorts anyway. but to be safe...
         FLAGS.cutoffs.append(VOCAB_SIZE)
 
     ### Define learning rate schedule and simulated annealing schedule for gumbel softmax temperature tau.
     logging.info(f"\n\nInitializing {FLAGS.opt_name} optimizer with {FLAGS.warmup_steps} warmup steps.")
-    learning_rate = CosineSchedule(5e-4, FLAGS.warmup_steps,DATASET_SIZE*FLAGS.epochs-FLAGS.warmup_steps) # Max learning rate here
+    decay_steps = DATASET_SIZE*FLAGS.epochs-FLAGS.warmup_steps
+    learning_rate = CosineSchedule(FLAGS.max_lr, FLAGS.warmup_steps, decay_steps) # Max learning rate here
     optimizer = tf.keras.optimizers.get(FLAGS.opt_name)
     optimizer.learning_rate = learning_rate
+    optimizer.clipvalue = 0.1
 
     if FLAGS.tau_is_trainable:
         logging.info(f"\n\nInitializing exponential tau decay: {FLAGS.tau_start}-->{FLAGS.tau_end}.\n")
@@ -152,12 +178,14 @@ def main(argv):
         'cutoffs': FLAGS.cutoffs,
         'proj_factor': FLAGS.proj_factor,
         'proj_dims': FLAGS.proj_dims,
+        'straight_through': FLAGS.straight_through
     }
     logging.info("\n\nInitializing model...")
     logging.info("Model parameters:")
     logging.info(config)
-    pos_enc = positional_encoding(MAX_POSITION, FLAGS.d_model)
-    lookahead_mask = create_lookahead_mask(MAX_POSITION, MAX_POSITION)
+    # the below are needed for vanilla_transformer, but not PARtransformer
+    # pos_enc = positional_encoding(MAX_POSITION, FLAGS.d_model)
+    # lookahead_mask = create_lookahead_mask(MAX_POSITION, MAX_POSITION)
     model = PARTransformerXL(**config)
 
     # Build model by feeding in sample training data
@@ -211,9 +239,10 @@ def main(argv):
     train_summary_writer = tf.summary.create_file_writer(train_log_dir)
     test_summary_writer = tf.summary.create_file_writer(test_log_dir)
 
-    # # TODO: FIGURE OUT WHAT TO DO HERE, HOW TO LOAD TensorBoard
-    # Maybe try os.system()? Or push this into another loading script? idk
-    # os.system('tensorboard --logdir ./logs')
+    # # TODO: FIGURE OUT WHAT TO DO HERE, HOW TO LOAD TensorBoard during a script
+    # If in colab write:
+    # %load_ext tensorboard
+    # %tensorboard --logdir logs/
 
     # Configure datasets for training
     logging.info("\n\nConfiguring datasets for training. Caching, prefetching...")
@@ -238,9 +267,19 @@ def main(argv):
             logging.info('Latest checkpoint restored!!')
         except:
             logging.warning("Model may have changed, could not restore checkpoint.")
+    with open(checkpoint_path+'/config', 'w') as file:
+        file.write(json.dumps(config))
+    logging.info(f"Writing model configuration to {checkpoint_path+'/config'}")
+    logging.info("""To recover this model from checkpoint, initialize a model using the config file.
+    Then, create a tf.train.Checkpoint pointing at this directory, set model=model, run the restore,
+    method of the checkpoint, then finally the uninitialized model should acquire the weights.""")
+
+    ckpt_save_path = ckpt_manager.save()
+    logging.info(f'Checkpointing model initialization at {ckpt_save_path}')
 
 
     # Run the actual training loop!
+    absolute_start = time.time()
     logging.info("\n\n~~~~~~~~~~ Beginning training ~~~~~~~~~~")
     for epoch in range(FLAGS.epochs):
 
@@ -258,20 +297,39 @@ def main(argv):
             print_bar(step, DATASET_SIZE, diff, train_loss.result().numpy())
 
             with train_summary_writer.as_default():
-                tf.summary.scalar('train_loss', train_loss.result(), step=glob_step)
-                tf.summary.scalar('train_perp', train_perp.result(), step=glob_step)
+                tf.summary.scalar('loss', train_loss.result(), step=glob_step)
+                tf.summary.scalar('perplexity', train_perp.result(), step=glob_step)
                 tf.summary.scalar('tau', tau(glob_step), step=glob_step)
+                tf.summary.scalar('lr', learning_rate(tf.cast(glob_step, tf.float32)),
+                              step=glob_step)
             glob_step.assign_add(1)
+
+            if (step+1)%1000==0:
+                logging.info("Global step:", glob_step.numpy())
+                visualize_pi_weights(model)
+                plt.show()
 
         evaluation(valid_ds, tau(glob_step))
         with test_summary_writer.as_default():
-            tf.summary.scalar('valid_loss', valid_loss.result(), step=glob_step)
-            tf.summary.scalar('valid_perp', valid_perp.result(), step=glob_step)
+            tf.summary.scalar('loss', valid_loss.result(), step=glob_step)
+            tf.summary.scalar('perplexity', valid_perp.result(), step=glob_step)
 
-        if epoch > 0:
-            ckpt_save_path = ckpt_manager.save()
-            logging.info(f'Saving checkpoint for epoch {epoch+1} at {ckpt_save_path}')
+        ckpt_save_path = ckpt_manager.save()
+        logging.info(f'Saving checkpoint for epoch {epoch+1} at {ckpt_save_path}')
 
-
+    tot_time = time.time()-absolute_start
+    minutes = tot_time//60
+    seconds = tot_time%60
+    logging.info('*'*100)
+    logging.info("\n\nTRAINING COMPLETE.\n\n")
+    logging.info('*'*100)
+    logging.info(f"\n\nTotal time: {minutes:.02d}min. {seconds:.02d}sec.\n\n")
+    try:
+        os.mkdir('saved_models')
+    except:
+        pass
+    logging.info(f'Saving final model to {'saved_models/'+FLAGS.model_name}')
+    model.save('saved_models/'+FLAGS.model_name)
+    
 if __name__=="__main__":
     app.run(main)
