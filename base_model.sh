@@ -17,7 +17,10 @@ DROPOUT_RATE=0.1
 CUTOFF1=250
 CUTOFF2=2500
 PROJ_FACTOR=4
+STRAIGHT_THROUGH=False
+
 # Don't set proj_dims
+MAX_LR=1e-4
 WARMUP_STEPS=4000
 TAU_START=2.0
 TAU_END=0.2
@@ -48,4 +51,6 @@ python3 train.py \
   --tau_is_trainable=${TAU_IS_TRAINABLE} \
   --opt_name=${OPT_NAME} \
   --epochs=${EPOCHS} \
-  --model_name=${MODEL_NAME}
+  --model_name=${MODEL_NAME} \
+  --max_lr=${MAX_LR} \
+  --straight_through=${STRAIGHT_THROUGH}
