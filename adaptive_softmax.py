@@ -57,7 +57,7 @@ class AdaptiveSoftmax(tf.keras.layers.Layer):
 
     def _loss(self, inp, labels, reduction='auto'):
         head_labels = labels
-        loss = tf.sparse.SparseTensor([[0,0]],[0.], labels.shape) # this might break in graph mode. check.
+        loss = tf.sparse.SparseTensor([[0,0]],[0.], tf.cast(tf.shape(labels), tf.int64)) # this might break in graph mode. check.
         for i in range(self.cluster_num):
             mask = tf.logical_and(
                 tf.greater_equal(labels, self.cutoffs[i]),
@@ -79,7 +79,7 @@ class AdaptiveSoftmax(tf.keras.layers.Layer):
                 tail_labels, tail_logits)
             aligned_tail_loss = tf.sparse.SparseTensor(
                 indices=tf.where(mask), values=tail_loss,
-                dense_shape=labels.shape
+                dense_shape=tf.cast(tf.shape(labels), tf.int64)
             ) # Same, might also break in graph mode b/c of labels.shpe
 
             # don't convert these to dense yet. slightly more efficient.
