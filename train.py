@@ -8,6 +8,7 @@ import datetime
 import numpy as np
 import tensorflow as tf
 import tensorflow_text as tf_text
+import matplotlib.pyplot as plt
 from data_utils import DataManager
 from utils import print_bar, visualize_pi_weights
 from par_model import PARTransformerXL
