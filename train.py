@@ -330,6 +330,6 @@ def main(argv):
         pass
     logging.info(f'Saving final model to {'saved_models/'+FLAGS.model_name}')
     model.save('saved_models/'+FLAGS.model_name)
-    
+
 if __name__=="__main__":
     app.run(main)
