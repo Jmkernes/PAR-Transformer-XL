@@ -328,7 +328,7 @@ def main(argv):
         os.mkdir('saved_models')
     except:
         pass
-    logging.info(f'Saving final model to {'saved_models/'+FLAGS.model_name}')
+    logging.info(f"Saving final model to {'saved_models/'+FLAGS.model_name}")
     model.save('saved_models/'+FLAGS.model_name)
 
 if __name__=="__main__":
