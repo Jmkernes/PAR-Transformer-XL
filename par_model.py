@@ -180,7 +180,12 @@ class StochasticBlock(tf.keras.layers.Layer):
         self.dropout_mha = tf.keras.layers.Dropout(dropout_rate)
         self.dropout_ffn = tf.keras.layers.Dropout(dropout_rate)
 
-        self.pi = tf.Variable([0.33,0.33,0.34], name='pi')
+        # I tried a uniform initialization at first, but it doesn't train as well
+#        self.pi = tf.Variable([0.33,0.33,0.34], name='pi')
+        pi_init = tf.random.uniform((3,), dtype=tf.float32)
+        pi_init = pi_init/tf.reduce_sum(pi_init)
+        self.pi = tf.Variable(pi_init)
+        # Empirically, letting the model learn tau causes NaN issues.
         self.tau = tf.Variable(1., name='tau')
 
     def call(self, x, x_mem=None, tau=None, training=None, pad_mask=None):
