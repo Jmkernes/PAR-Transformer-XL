@@ -182,10 +182,10 @@ class StochasticBlock(tf.keras.layers.Layer):
         self.dropout_ffn = tf.keras.layers.Dropout(dropout_rate)
 
         # I tried a uniform initialization at first, but it doesn't train as well
-#        self.pi = tf.Variable([0.33,0.33,0.34], name='pi')
-        pi_init = tf.random.uniform((3,), dtype=tf.float32)
-        pi_init = pi_init/tf.reduce_sum(pi_init)
-        self.pi = tf.Variable(pi_init)
+        self.pi = tf.Variable([0.33,0.33,0.34], name='pi')
+#        pi_init = tf.random.uniform((3,), dtype=tf.float32)
+#        pi_init = pi_init/tf.reduce_sum(pi_init)
+#        self.pi = tf.Variable(pi_init)
         # Empirically, letting the model learn tau causes NaN issues.
         self.tau = tf.Variable(1., name='tau')
 
@@ -194,6 +194,11 @@ class StochasticBlock(tf.keras.layers.Layer):
         # I think it should be how I have it.
         if tau is None:
             tau = self.tau # if no schedule, use the variable
+
+        # During training, we need to ensure pi is positive and sums to 1.
+        if training:
+            self.pi = tf.maximum(self.pi, 0)
+            self.pi = self.pi/tf.reduce_sum(self.pi)
 
         # mha block
         block1 = self.rmha(x, x_mem, pad_mask)
@@ -206,7 +211,7 @@ class StochasticBlock(tf.keras.layers.Layer):
         block2 = self.layernorm_ffn(block2+x)
 
         # Gumbel softmax
-        weights = self.gumbel_softmax(self.pi, tau)
+        weights = self.gumbel_softmax(self.pi, tau, training=training)
 
         output = block1*weights[0] + block2*weights[1] + x*weights[2]
         return output
