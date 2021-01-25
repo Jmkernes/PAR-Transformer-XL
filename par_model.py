@@ -160,6 +160,7 @@ class RelaxedOneHot(tf.keras.layers.Layer):
     def call(self, pi, tau):
         eps = 1e-5 # for numerical stability. hopefully...
         g = self.gumbel(tf.shape(pi))
+        pi = tf.maximum(pi, 0) # Not sure if this works!
         logits = (tf.math.log(pi+eps)+g)/tau
         out = tf.nn.softmax(logits)
         if self.straight_through:
