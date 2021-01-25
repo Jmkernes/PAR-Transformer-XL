@@ -141,6 +141,12 @@ class CosineSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         cosine = 0.5*self.max_lr*(1+tf.math.cos(angle))
         return tf.math.minimum(linear, cosine)
 
+def renormalize_pi(model):
+    for layer in model.layers:
+        if hasattr(layer, 'pi'):
+            layer.pi = tf.maximum(layer.pi, 0)
+            layer.pi = layer.pi/tf.reduce_sum(layer.pi)
+
 def main(argv):
     # Take care of some flags logic beyond simple constraints.
     if FLAGS.d_model%FLAGS.num_heads:
@@ -303,15 +309,17 @@ def main(argv):
         for step, (inp, lbl) in enumerate(train_ds):
 
             mems = train_step(inp, mems, lbl, tau(glob_step))
+            renormalize_pi(model)
 
             if np.isnan(train_loss.result()):
                 raise ValueError("Enountered NaN!")
 
             diff = (time.time()-start)/(step+1)
-            print_bar(step, DATASET_SIZE, diff, train_loss.result().numpy())
+            loss = float(train_loss.result())
+            print_bar(step, DATASET_SIZE, diff, loss)
             if (int(glob_step)+1)%100==0:
-                step = int(glob_step)+1
-                iter_message = f"Iteration {step:02d}/{DATASET_SIZE}:"
+                step = int(glob_step)
+                iter_message = f"Iteration {step+1:02d}/{DATASET_SIZE}:"
                 time_message = f"{1/diff:.2f} it/s."
                 loss_message = f"Loss: {loss:.3f}"
                 logging.info(iter_message, time_message, loss_message)

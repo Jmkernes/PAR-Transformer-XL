@@ -195,11 +195,6 @@ class StochasticBlock(tf.keras.layers.Layer):
         if tau is None:
             tau = self.tau # if no schedule, use the variable
 
-        # During training, we need to ensure pi is positive and sums to 1.
-        if training:
-            self.pi = tf.maximum(self.pi, 0)
-            self.pi = self.pi/tf.reduce_sum(self.pi)
-
         # mha block
         block1 = self.rmha(x, x_mem, pad_mask)
         block1 = self.dropout_mha(block1, training=training)
