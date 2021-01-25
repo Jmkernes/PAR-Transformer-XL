@@ -297,6 +297,9 @@ def main(argv):
 
             mems = train_step(inp, mems, lbl, tau(glob_step))
 
+            if np.isnan(train_loss.result()):
+                raise ValueError("Enountered NaN!")
+
             diff = (time.time()-start)/(step+1)
             print_bar(step, DATASET_SIZE, diff, train_loss.result().numpy())
 
@@ -308,7 +311,7 @@ def main(argv):
                               step=glob_step)
             glob_step.assign_add(1)
 
-            if (step+1)%1000==0:
+            if (int(glob_step)+1)%1000==0:
                 try:
                     os.mkdir('plots')
                 except:
