@@ -91,7 +91,7 @@ flags.DEFINE_boolean('tau_is_trainable', default=False,
     help='Set True to let model learn tau.')
 flags.DEFINE_string('opt_name', default='adam',
     help='Available choices are set by the tf.keras.optimizers.get() call.')
-flags.DEFINE_integer('clipvalue', default=0, 'Gradient clipping value')
+flags.DEFINE_integer('clipvalue', default=0, help='Gradient clipping value')
 
 
 ### Data loading functions
