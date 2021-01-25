@@ -287,7 +287,7 @@ def main(argv):
     logging.info("\n\n~~~~~~~~~~ Beginning training ~~~~~~~~~~")
     for epoch in range(FLAGS.epochs):
 
-        logging.info('-'*10+f' Epoch {epoch+1}/{FLAGS.epochs} '+'-'*10)
+        logging.info('\n'+'-'*10+f' Epoch {epoch+1}/{FLAGS.epochs} '+'-'*10)
         start = time.time()
         for x in [train_loss, valid_loss, train_perp, valid_perp]:
             x.reset_states()
