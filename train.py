@@ -1,4 +1,14 @@
 import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[
+        logging.FileHandler("training.log"),
+        logging.StreamHandler()
+    ]
+)
+
 logging.info("\n\n~~~~~~~~ Importing Modules ~~~~~~~~\n")
 
 import os
@@ -36,7 +46,7 @@ flags.DEFINE_string('test_directory',
     default='data/wikitext2_bsz32_seqlen32_tfrecords_test',
     help='Path of testing dataset tfrecords directory')
 flags.DEFINE_string('sp_model_prefix',
-        default='wiki2_12k',
+        default='tokenizer/wiki2_12k',
         help='SentencePiece model file prefix')
 
 ### Get model parameter flags
@@ -277,9 +287,6 @@ def main(argv):
     with open(checkpoint_path+'/config', 'w') as file:
         file.write(json.dumps(config))
     logging.info(f"Writing model configuration to {checkpoint_path+'/config'}")
-    logging.info("""To recover this model from checkpoint, initialize a model using the config file.
-    Then, create a tf.train.Checkpoint pointing at this directory, set model=model, run the restore,
-    method of the checkpoint, then finally the uninitialized model should acquire the weights.""")
 
 
     # Run the actual training loop!
@@ -302,6 +309,12 @@ def main(argv):
 
             diff = (time.time()-start)/(step+1)
             print_bar(step, DATASET_SIZE, diff, train_loss.result().numpy())
+            if (int(glob_step)+1)%100==0:
+                step = int(glob_step)+1
+                iter_message = f"Iteration {step:02d}/{DATASET_SIZE}:"
+                time_message = f"{1/diff:.2f} it/s."
+                loss_message = f"Loss: {loss:.3f}"
+                logging.info(iter_message, time_message, loss_message)
 
             with train_summary_writer.as_default():
                 tf.summary.scalar('loss', train_loss.result(), step=glob_step)
@@ -311,7 +324,7 @@ def main(argv):
                               step=glob_step)
             glob_step.assign_add(1)
 
-            if (int(glob_step)+1)%1000==0:
+            if int(glob_step)%1000==0:
                 try:
                     os.mkdir('plots')
                 except:
@@ -329,18 +342,20 @@ def main(argv):
         logging.info(f'Saving checkpoint for epoch {epoch+1} at {ckpt_save_path}')
 
     tot_time = time.time()-absolute_start
-    minutes = tot_time//60
-    seconds = tot_time%60
-    logging.info('*'*100)
-    logging.info("\n\nTRAINING COMPLETE.\n\n")
-    logging.info('*'*100)
-    logging.info(f"\n\nTotal time: {minutes:.02d}min. {seconds:.02d}sec.\n\n")
+    minutes = int(tot_time)//60
+    seconds = int(tot_time)%60
+    logging.info('*'*100+"\n\nTRAINING COMPLETE.\n\n"+'*'*100)
     try:
         os.mkdir('saved_models')
     except:
         pass
     logging.info(f"Saving final model to {'saved_models/'+FLAGS.model_name}")
-    model.save('saved_models/'+FLAGS.model_name)
+    try:
+        model.save('saved_models/'+FLAGS.model_name)
+    except Exception as e:
+        logging.error("Failed to save model")
+        logging.error(e.args)
+    logging.info(f"\n\nTotal time: {minutes:02d}min. {seconds:02d}sec.\n\n")
 
 if __name__=="__main__":
     app.run(main)
