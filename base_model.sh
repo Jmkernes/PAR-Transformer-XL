@@ -6,7 +6,7 @@ echo "=== Setting up configuration ==="
 TRAIN_DIR=data/wikitext2_bsz32_seqlen32_tfrecords_train
 VAL_DIR=data/wikitext2_bsz32_seqlen32_tfrecords_valid
 TEST_DIR=data/wikitext2_bsz32_seqlen32_tfrecords_test
-SP_MODEL_PREFIX=wiki2_12k
+SP_MODEL_PREFIX=tokenizer/wiki2_12k
 
 # Model stuff
 D_MODEL=128
@@ -15,7 +15,7 @@ D_FFN=512
 NUM_LAYERS=12
 MEM_LEN=32
 DROPOUT_RATE=0.1
-# CUTOFF1=250
+CUTOFF1=250
 CUTOFF2=2500
 PROJ_FACTOR=4
 STRAIGHT_THROUGH=False
@@ -44,7 +44,7 @@ python3 train.py \
   --num_layers=${NUM_LAYERS} \
   --mem_len=${MEM_LEN} \
   --dropout_rate=${DROPOUT_RATE} \
-#  --cutoffs=${CUTOFF1} \
+  --cutoffs=${CUTOFF1} \
   --cutoffs=${CUTOFF2} \
   --proj_factor=${PROJ_FACTOR} \
   --warmup_steps=${WARMUP_STEPS} \

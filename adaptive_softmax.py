@@ -30,7 +30,7 @@ class AdaptiveSoftmax(tf.keras.layers.Layer):
         self.tail_w = None
 
     def get_config(self):
-        proj_dims = [x.numpy() for x in self.proj_dims]
+        proj_dims = [int(x) for x in self.proj_dims]
         base_config = super(AdaptiveSoftmax, self).get_config()
         return {**base_config, "proj_factor": self.proj_factor,
          "proj_dims":proj_dims, "cutoffs":self.cutoffs}

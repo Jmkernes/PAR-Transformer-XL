@@ -26,7 +26,7 @@ if [[ ! -d 'wikitext-2' ]]; then
     mv wiki.valid.tokens valid.txt
     mv wiki.test.tokens test.txt
     cd ..
-    # Begin my shit TODO test this
+    # TODO test this
     echo "Finished downloading data to directory /data/wikitext-2/."
     cd ..
 
