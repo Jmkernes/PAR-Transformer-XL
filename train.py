@@ -91,6 +91,7 @@ flags.DEFINE_boolean('tau_is_trainable', default=False,
     help='Set True to let model learn tau.')
 flags.DEFINE_string('opt_name', default='adam',
     help='Available choices are set by the tf.keras.optimizers.get() call.')
+flags.DEFINE_integer('clipvalue', default=0, 'Gradient clipping value')
 
 
 ### Data loading functions
@@ -174,7 +175,8 @@ def main(argv):
     learning_rate = CosineSchedule(FLAGS.max_lr, FLAGS.warmup_steps, decay_steps) # Max learning rate here
     optimizer = tf.keras.optimizers.get(FLAGS.opt_name)
     optimizer.learning_rate = learning_rate
-    optimizer.clipvalue = 0.1
+    if FLAGS.clipvalue:
+        optimizer.clipvalue = FLAGS.clipvalue
 
     if FLAGS.tau_is_trainable:
         logging.info(f"\n\nInitializing exponential tau decay: {FLAGS.tau_start}-->{FLAGS.tau_end}.\n")
