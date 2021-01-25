@@ -6,6 +6,7 @@ echo "=== Setting up configuration ==="
 TRAIN_DIR=data/wikitext2_bsz32_seqlen32_tfrecords_train
 VAL_DIR=data/wikitext2_bsz32_seqlen32_tfrecords_valid
 TEST_DIR=data/wikitext2_bsz32_seqlen32_tfrecords_test
+SP_MODEL_PREFIX=wiki2_12k
 
 # Model stuff
 D_MODEL=256
@@ -36,6 +37,7 @@ python3 train.py \
   --train_directory=${TRAIN_DIR} \
   --valid_directory=${VAL_DIR} \
   --test_directory=${TEST_DIR} \
+  --sp_model_prefix=${SP_MODEL_PREFIX} \
   --d_model=${D_MODEL} \
   --num_heads=${NUM_HEADS} \
   --d_ffn=${D_FFN} \

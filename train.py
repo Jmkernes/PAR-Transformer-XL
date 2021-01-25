@@ -35,6 +35,9 @@ flags.DEFINE_string('valid_directory',
 flags.DEFINE_string('test_directory',
     default='data/wikitext2_bsz32_seqlen32_tfrecords_test',
     help='Path of testing dataset tfrecords directory')
+flags.DEFINE_string('sp_model_prefix',
+        default='wiki2_12k',
+        help='SentencePiece model file prefix')
 
 ### Get model parameter flags
 flags.DEFINE_integer('d_model', default=256,
@@ -84,7 +87,7 @@ flags.DEFINE_string('opt_name', default='adam',
 def load_datasets(train, val, test):
     """Load the wikitext2 train, validation and test data"""
     logging.info(f"\nLoading training data from: {train}")
-    config = {'tfrecords_directory': train,'sp_model_prefix': 'wiki2_12k'}
+    config = {'tfrecords_directory': train,'sp_model_prefix':FLAGS.sp_model_prefix }
     train_dm = DataManager.initialize_from_tfrecord(config)
 
     logging.info(f"\nLoading validation data from: {val}")
@@ -306,9 +309,13 @@ def main(argv):
             glob_step.assign_add(1)
 
             if (step+1)%1000==0:
-                logging.info("Global step:", glob_step.numpy())
+                try:
+                    os.mkdir('plots')
+                except:
+                    pass
+                logging.info(f"Global step:, {int(glob_step)}. Saving plots...")
                 visualize_pi_weights(model)
-                plt.show()
+                plt.savefig(f"plots/step{int(glob_step)}.png")
 
         evaluation(valid_ds, tau(glob_step))
         with test_summary_writer.as_default():
