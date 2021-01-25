@@ -320,9 +320,9 @@ def main(argv):
             if (int(glob_step)+1)%100==0:
                 step = int(glob_step)
                 iter_message = f"Iteration {step+1:02d}/{DATASET_SIZE}:"
-                time_message = f"{1/diff:.2f} it/s."
-                loss_message = f"Loss: {loss:.3f}"
-                logging.info(iter_message, time_message, loss_message)
+                time_message = f" {1/diff:.2f} it/s."
+                loss_message = f" Loss: {loss:.3f}"
+                logging.info(iter_message+time_message+loss_message)
 
             with train_summary_writer.as_default():
                 tf.summary.scalar('loss', train_loss.result(), step=glob_step)
