@@ -36,6 +36,11 @@ All of this is implemented on the freely available wiki-text2 dataset.
 *Explanation of the main GIF:* The main gif is the result of our experiments. It shows the pi distribution for each stochastic block of a 6 block SuperNet, as a function of training iterations.
 The number indicates the probability of the most likely layer type (darker means more probable). As you can see, the model learns to put attention in the beginning, and dense layers at the end.
 
+## Requirements
+
+Usual ML stuff, if you have a conda environment, python 3+, TensorFlow 2+ you should be ok. You will need TensorFlow Text as well to handle the SentencePiece Tokenization
+
+If you choose to run your own tokenizer (a flag option in data_utils for handling new text data), you will also need to download the SentencePiece package: https://github.com/google/sentencepiece
 
 ## Data
 
