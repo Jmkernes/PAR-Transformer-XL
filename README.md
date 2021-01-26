@@ -36,4 +36,17 @@ All of this is implemented on the freely available wiki-text2 dataset.
 The number indicates the probability of the most likely layer type (darker means more probable). As you can see, the model learns to put attention in the beginning, and dense layers at the end.
 
 
-## 
+## Data
+
+The dataset used is Wiki-text2. We have provided a copy of this in the data folder, along with some preprocessed data for training. In order to reproduce this from scratch, run the shell script
+
+```
+./create_tfrecords.sh
+```
+
+This will download the wiki-text2 dataset from its source, then proceed to clean, batch, and write the data to a tfrecords file. The shell script calls ```build_data.py``` which offers more control over what type of data to generate. The general parameters you will want to tune are:
+
+```
+--batch_size
+--
+```
