@@ -46,7 +46,52 @@ The dataset used is Wiki-text2. We have provided a copy of this in the data fold
 
 This will download the wiki-text2 dataset from its source, then proceed to clean, batch, and write the data to a tfrecords file. The shell script calls ```build_data.py``` which offers more control over what type of data to generate. The general parameters you will want to tune are:
 
+*batch_size 
+*seq_len.
+
+You can also supply your own dataset instead of the one provided. The underlying tokenizer uses sentencepiece (Kudo): https://github.com/google/sentencepiece, which works at the byte level and can handle any kind of input. Simply change the --input_text flag to your file, and set the desired --vocab_size.
+
+Why do we need to specify the batch size? Transformer XL uses memory states to form a recurrent, long range network. After analyzing a particular sequence say [A,B] of the sequence [A,B,C,D], the results of [A,B] are fed into the [C,D] calculation with a stop gradient. Therefore, we must be sure that each datapoint follows chronologically from the previous one.
+
+This is achieved by *context batching* (see data_utils.py function) where we break the entire dataset into batch_size segments, then pull in order one sequence from each batch at a time to form the dataset. Because of this, note that adding more shards to the data could result in a large loss (order of batch_size\*seq_len\*shards), as each shard will drop the remaining datapoint of size (batch_size\*seq_len) to keep the tensor shapes.
+
+
+## Addtional technical details
+
+Per the original Transformer-XL, we also implement an adaptive softmax layer (Grave et. al. 2017, https://arxiv.org/abs/1609.04309) to deal with a potentially large number of outputs in the final dense layer. This implemenation is inspired by the TF 1.0 example at https://github.com/yangsaiyong/tf-adaptive-softmax-lstm-lm.
+To use the adaptive softmax, set the ```--cutoffs=``` flag in train.py. The cutoffs are the max values of each bin, and should NOT include the vocab size (i.e. the max cutoff of the final bin). If no cutoffs are specified, the model defaults to normal softmax.
+
+For completeness, we have also provided a script ```optimal_cuts.py``` that determines the optimal cutoffs given a return space separated file of unigram probabilities (based on the assumptions of Grave et. al. regarding GPU computation complexity -- see the paper for details). 
+The algorithm uses dynamic programming, but is quite slow at O(KN^2), for K cutoffs and N vocab words. In principle it's a one time cost to determine the cutoffs, but we are impatient and recommend to just play around with the cutoffs instead. See the script for flag details
+
+## Training and Benchmarks
+
+The default model we use has memory length 16, feed-forward dimension 1024, attention dimension 128, and 6 stochastic blocks, with an adaptive softmax layer and 2 clusters. We trained on a colab GPU for 20 epochs, taking a total of 37 minutes. We use an Adam optimzer with cosine rate decay: an initial warmup of 4000 steps and a maximum learning rate of 1e-4, decaying to zero at the end of training. Our training benchmarks are:
+
+| Iteration (thousands) | Train_perplexity | Validation_perplexity | Time    |
+|:---------------------:|:----------------:|-----------------------|---------|
+|          2.7k         |       163.9      |         114.4         |  1m 58s |
+|          8.5k         |       78.56      |         62.33         |  5m 37s |
+|         14.1k         |       65.71      |         51.88         |  9m 28s |
+|         28.3k         |       48.52      |         42.61         | 18m 40s |
+|         48.1k         |       41.85      |         39.57         | 31m 51s |
+|         56.5k         |       42.12      |         39.41         | 37m 14s |
+
+
+To train, simply run the shell script
 ```
---batch_size
---
+./base_model.sh
 ```
+adjusting the parameters as you see fit. The above model is the default configuration. To train in colab, simply open up the notebook "colab.ipynb" and follow the instructions. This is most easily done by going to [google.colab.com] and searching this repository in github. The benefit of colab, is it's easier to play around with the model after training.
+
+While training, we have provided two ways to monitor the output
+
+1) A tensorboard log. The colab notebook takes care of running this for you. In the terminal, first create a 'logs' directory, then run the command ```tensorboard --logdir logs``` in a separate tab. This will open a port where you can view live plots of the learning rate, tau annealing, train/valid loss and perplexity.
+
+2) An output log saved to training_log.log. This will log the model summary, parameters, etc. as well as print out loss updates every 100 steps and save it to the log file.
+
+## Thanks for reading this far!
+
+Enjoy! And thank you to the wonderful researchers that inspired this project.
+
+If you would like to contribute, or have any comments questions concerns please open a pull request or email me directly.
