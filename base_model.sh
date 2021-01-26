@@ -12,8 +12,8 @@ SP_MODEL_PREFIX=tokenizer/wiki2_12k
 D_MODEL=128
 NUM_HEADS=4
 D_FFN=512
-NUM_LAYERS=12
-MEM_LEN=32
+NUM_LAYERS=6
+MEM_LEN=16
 DROPOUT_RATE=0.1
 CUTOFF1=250
 CUTOFF2=2500
@@ -30,7 +30,7 @@ TAU_IS_TRAINABLE=False
 OPT_NAME=adam
 
 # File prefix for checkpointing and TensorBoard
-MODEL_NAME=dmodel256_dffn1024_blocks12
+MODEL_NAME=dmodel128_dffn512_blocks6
 
 echo "=== Beginning training ==="
 python3 train.py \
