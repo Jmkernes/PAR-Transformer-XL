@@ -12,7 +12,7 @@ def extract_pi_weights(model):
     weights = tf.stack(weights, 0).numpy()
     return weights
 
-def stochastic_block_plot(weights):
+def stochastic_block_plot(weights, title='PAR-segmentation'):
     num_blocks = len(weights)
     weights = np.transpose(weights)
     fig, ax = plt.subplots(figsize=(12, 8))
@@ -23,6 +23,7 @@ def stochastic_block_plot(weights):
     ax.set_xticklabels(range(1, num_blocks+1))
     ax.set_ylabel(f'Block type probability',size=14)
     ax.set_xlabel(f'Stochastic block', size=14)
+    plt.title(title)
 
     # add text boxs for max weight values
     for i,j in zip(np.argmax(weights, 0), np.arange(num_blocks)):

@@ -339,7 +339,7 @@ def main(argv):
                 except:
                     pass
                 logging.info(f"Global step:, {int(glob_step)}. Saving plots...")
-                visualize_pi_weights(model)
+                visualize_pi_weights(model, title=f'Iteration: {int(glob_step)}')
                 plt.savefig(f"plots/step{int(glob_step)}.png")
 
         evaluation(valid_ds, tau(glob_step))
