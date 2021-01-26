@@ -13,6 +13,7 @@ Instead, we perform a simultaneous optimization procedure on both the model arch
 a sequential neural network composed of stochastic blocks, as shown in the figure below (taken from the paper. Please don't sue me!)
 
 ![alt text](https://github.com/jmkernes/PAR-Transformer-XL/blob/main/stoch_blks.png?raw=true)
+[Source: Mandava et. al. 2020]
 
 The key component is a Gumbel-Softmax layer [(Jang et al., 2016) and (Maddison et al., 2016). jang link: https://arxiv.org/pdf/1611.01144.pdf]. This layer is a continuous representation
 of a discrete sampling from a Categorical distribution, thereby allowing us to use gradients to learn parameters of a discrete distribution. 
