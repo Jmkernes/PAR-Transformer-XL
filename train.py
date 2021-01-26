@@ -91,7 +91,7 @@ flags.DEFINE_boolean('tau_is_trainable', default=False,
     help='Set True to let model learn tau.')
 flags.DEFINE_string('opt_name', default='adam',
     help='Available choices are set by the tf.keras.optimizers.get() call.')
-flags.DEFINE_integer('clipvalue', default=0, help='Gradient clipping value')
+flags.DEFINE_float('clipvalue', default=0, help='Gradient clipping value')
 
 
 ### Data loading functions
@@ -171,8 +171,10 @@ def main(argv):
 
     ### Define learning rate schedule and simulated annealing schedule for gumbel softmax temperature tau.
     logging.info(f"\n\nInitializing {FLAGS.opt_name} optimizer with {FLAGS.warmup_steps} warmup steps.")
+
     decay_steps = DATASET_SIZE*FLAGS.epochs-FLAGS.warmup_steps
-    learning_rate = CosineSchedule(FLAGS.max_lr, FLAGS.warmup_steps, decay_steps) # Max learning rate here
+    learning_rate = CosineSchedule(max_lr=FLAGS.max_lr, decay_steps=decay_steps, warmup_steps=FLAGS.warmup_steps) # Max learning rate here
+
     optimizer = tf.keras.optimizers.get(FLAGS.opt_name)
     optimizer.learning_rate = learning_rate
     if FLAGS.clipvalue:
@@ -205,9 +207,6 @@ def main(argv):
     logging.info("\n\nInitializing model...")
     logging.info("Model parameters:")
     logging.info(config)
-    # the below are needed for vanilla_transformer, but not PARtransformer
-    # pos_enc = positional_encoding(MAX_POSITION, FLAGS.d_model)
-    # lookahead_mask = create_lookahead_mask(MAX_POSITION, MAX_POSITION)
     model = PARTransformerXL(**config)
 
     # Build model by feeding in sample training data
@@ -292,7 +291,7 @@ def main(argv):
 
     ckpt_save_path = ckpt_manager.save()
     logging.info(f'Checkpointing model initialization at {ckpt_save_path}')
-    with open(checkpoint_path+'/config', 'w') as file:
+    with open(checkpoint_path+'/config.json', 'w') as file:
         file.write(json.dumps(config))
     logging.info(f"Writing model configuration to {checkpoint_path+'/config'}")
 
@@ -311,7 +310,7 @@ def main(argv):
         for step, (inp, lbl) in enumerate(train_ds):
 
             mems = train_step(inp, mems, lbl, tau(glob_step))
-            renormalize_pi(model)
+            # renormalize_pi(model)
 
             if np.isnan(train_loss.result()):
                 raise ValueError("Enountered NaN!")
@@ -321,7 +320,7 @@ def main(argv):
             print_bar(step, DATASET_SIZE, diff, loss)
             if (int(glob_step)+1)%100==0:
                 step = int(glob_step)
-                iter_message = f"Iteration {step+1:02d}/{DATASET_SIZE}:"
+                iter_message = f"Iteration {step+1:02d}/{DATASET_SIZE*FLAGS.epochs}:"
                 time_message = f" {1/diff:.2f} it/s."
                 loss_message = f" Loss: {loss:.3f}"
                 logging.info(iter_message+time_message+loss_message)
