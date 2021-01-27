@@ -75,7 +75,7 @@ The algorithm uses dynamic programming, but is quite slow at O(KN^2), for K cuto
 The default model we use has memory length 16, feed-forward dimension 1024, attention dimension 128, and 6 stochastic blocks, with an adaptive softmax layer and 2 clusters. We trained on a colab GPU for 20 epochs, taking a total of 37 minutes. We use an Adam optimzer with cosine rate decay: an initial warmup of 4000 steps and a maximum learning rate of 1e-4, decaying to zero at the end of training. Our training benchmarks are:
 
 | Iteration (thousands) | Train_perplexity | Validation_perplexity | Time    |
-|:---------------------:|:----------------:|-----------------------|---------|
+|:---------------------:|:----------------:|:-----------------------:|:---------:|
 |          2.7k         |       163.9      |         114.4         |  1m 58s |
 |          8.5k         |       78.56      |         62.33         |  5m 37s |
 |         14.1k         |       65.71      |         51.88         |  9m 28s |
